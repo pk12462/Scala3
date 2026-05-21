@@ -1,6 +1,6 @@
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
-import scala.io.Source
+import org.apache.spark.sql.DataFrame
 
 object EmployeeAnalytics {
 
@@ -104,7 +104,7 @@ object EmployeeAnalytics {
   /**
    * Functionality 1: Filter employees by department
    */
-  def filterByDepartment(df: org.apache.spark.sql.DataFrame, dept: String) = {
+  private def filterByDepartment(df: DataFrame, dept: String): DataFrame = {
     df.filter(col("department") === dept)
       .select("empId", "name", "department", "salary", "city")
   }
@@ -112,7 +112,7 @@ object EmployeeAnalytics {
   /**
    * Functionality 2: Filter employees by salary range
    */
-  def filterBySalaryRange(df: org.apache.spark.sql.DataFrame, minSalary: Double, maxSalary: Double) = {
+  private def filterBySalaryRange(df: DataFrame, minSalary: Double, maxSalary: Double): DataFrame = {
     df.filter(col("salary").between(minSalary, maxSalary))
       .select("empId", "name", "department", "salary")
       .orderBy(col("salary").desc)
@@ -121,7 +121,7 @@ object EmployeeAnalytics {
   /**
    * Functionality 3: Average salary by department
    */
-  def averageSalaryByDepartment(df: org.apache.spark.sql.DataFrame) = {
+  private def averageSalaryByDepartment(df: DataFrame): DataFrame = {
     df.groupBy("department")
       .agg(avg("salary").as("Average_Salary"))
       .orderBy(col("Average_Salary").desc)
@@ -130,7 +130,7 @@ object EmployeeAnalytics {
   /**
    * Functionality 4: Count employees by department
    */
-  def employeeCountByDepartment(df: org.apache.spark.sql.DataFrame) = {
+  private def employeeCountByDepartment(df: DataFrame): DataFrame = {
     df.groupBy("department")
       .count()
       .withColumnRenamed("count", "Employee_Count")
@@ -140,7 +140,7 @@ object EmployeeAnalytics {
   /**
    * Functionality 5: Top N highest paid employees
    */
-  def topPaidEmployees(df: org.apache.spark.sql.DataFrame, n: Int) = {
+  private def topPaidEmployees(df: DataFrame, n: Int): DataFrame = {
     df.orderBy(col("salary").desc)
       .limit(n)
       .select("empId", "name", "department", "salary", "city")
@@ -149,7 +149,7 @@ object EmployeeAnalytics {
   /**
    * Functionality 6: Employees by city
    */
-  def employeesByCity(df: org.apache.spark.sql.DataFrame) = {
+  private def employeesByCity(df: DataFrame): DataFrame = {
     df.groupBy("city")
       .count()
       .withColumnRenamed("count", "Employee_Count")
@@ -159,7 +159,7 @@ object EmployeeAnalytics {
   /**
    * Functionality 7: Average salary by city
    */
-  def averageSalaryByCity(df: org.apache.spark.sql.DataFrame) = {
+  private def averageSalaryByCity(df: DataFrame): DataFrame = {
     df.groupBy("city")
       .agg(avg("salary").as("Average_Salary"), count("*").as("Employee_Count"))
       .orderBy(col("Average_Salary").desc)
@@ -168,7 +168,7 @@ object EmployeeAnalytics {
   /**
    * Functionality 8: Department with highest average salary
    */
-  def departmentWithHighestAvgSalary(df: org.apache.spark.sql.DataFrame) = {
+  private def departmentWithHighestAvgSalary(df: DataFrame): DataFrame = {
     df.groupBy("department")
       .agg(avg("salary").as("Average_Salary"))
       .orderBy(col("Average_Salary").desc)
@@ -178,7 +178,7 @@ object EmployeeAnalytics {
   /**
    * Functionality 9: Employees joined after a specific date
    */
-  def employeesJoinedAfter(df: org.apache.spark.sql.DataFrame, date: String) = {
+  private def employeesJoinedAfter(df: DataFrame, date: String): DataFrame = {
     df.filter(col("joinDate") > date)
       .select("empId", "name", "department", "joinDate", "city")
       .orderBy(col("joinDate").desc)
@@ -187,7 +187,7 @@ object EmployeeAnalytics {
   /**
    * Functionality 10: Total salary expense by department
    */
-  def totalSalaryByDepartment(df: org.apache.spark.sql.DataFrame) = {
+  private def totalSalaryByDepartment(df: DataFrame): DataFrame = {
     df.groupBy("department")
       .agg(sum("salary").as("Total_Salary_Expense"))
       .orderBy(col("Total_Salary_Expense").desc)
@@ -196,7 +196,7 @@ object EmployeeAnalytics {
   /**
    * Functionality 11: Salary statistics
    */
-  def salaryStatistics(df: org.apache.spark.sql.DataFrame) = {
+  private def salaryStatistics(df: DataFrame): DataFrame = {
     df.agg(
       min("salary").as("Minimum_Salary"),
       max("salary").as("Maximum_Salary"),

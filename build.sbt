@@ -8,6 +8,6 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-sql" % "3.5.0"
 )
 
-mainClass in (Compile, run) := Some("EmployeeAnalytics")
+Compile / run / mainClass := Some("EmployeeAnalytics")
 
 
