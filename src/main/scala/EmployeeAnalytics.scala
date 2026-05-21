@@ -2,6 +2,10 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame
 
+
+
+case class Department(department: String, manager: String)
+
 object EmployeeAnalytics {
 
   def main(args: Array[String]): Unit = {
@@ -18,26 +22,36 @@ object EmployeeAnalytics {
     // Import spark implicits for automatic conversion
     import spark.implicits._
 
-    // Create sample employee data
-    val employeeData = Seq(
-      Employee(1, "Pavan Kumar", "Engineering", 85000.0, "2021-01-15", "Bangalore"),
-      Employee(2, "Priya Singh", "Engineering", 90000.0, "2020-06-20", "Bangalore"),
-      Employee(3, "Rajesh Sharma", "Sales", 75000.0, "2019-03-10", "Mumbai"),
-      Employee(4, "Neha Verma", "HR", 70000.0, "2022-02-14", "Delhi"),
-      Employee(5, "Amit Patel", "Engineering", 88000.0, "2021-05-22", "Bangalore"),
-      Employee(6, "Anjali Desai", "Sales", 72000.0, "2020-11-30", "Mumbai"),
-      Employee(7, "Vikram Singh", "Engineering", 92000.0, "2019-09-05", "Bangalore"),
-      Employee(8, "Deepika Menon", "Marketing", 76000.0, "2021-07-18", "Delhi"),
-      Employee(9, "Arjun Nair", "Sales", 78000.0, "2022-01-10", "Mumbai"),
-      Employee(10, "Sana Khan", "HR", 71000.0, "2021-04-25", "Delhi")
-    )
+    // Determine input CSV path (optional arg) and load data from CSV (preferred).
+    // This project includes `data/employees.csv` with 100 rows.
+    val dataPath: String = if (args.nonEmpty) args(0) else "data/employees.csv"
 
-    // Convert to DataFrame
-    val employeeDF = employeeData.toDF()
+    // Read CSV and normalize schema/columns. We cast important fields to the correct types
+    val employeeDF: DataFrame = {
+      val df = spark.read
+        .option("header", "true")
+        .option("inferSchema", "true")
+        .csv(dataPath)
+
+      // Ensure correct types and a proper date column
+      df.withColumn("empId", col("empId").cast("int"))
+        .withColumn("salary", col("salary").cast("double"))
+        .withColumn("joinDate", to_date(col("joinDate"), "yyyy-MM-dd"))
+        .select("empId", "name", "department", "salary", "joinDate", "city")
+    }
 
     println("\n1. ALL EMPLOYEE DATA")
     println("-" * 80)
     employeeDF.show(false)
+
+    // Demonstrate expressions, mappings and derived columns
+    println("\n1a. DERIVED COLUMNS: BONUS (10%) AND SALARY_BAND")
+    println("-" * 80)
+    addBonusColumn(employeeDF).show(false)
+
+    println("\n1b. NAME MAPPING: UPPERCASE NAMES")
+    println("-" * 80)
+    nameUppercaseMapping(employeeDF).show(false)
 
     // Functionality 1: Filter employees by department
     println("\n2. EMPLOYEES IN ENGINEERING DEPARTMENT")
@@ -93,6 +107,35 @@ object EmployeeAnalytics {
     println("\n12. SALARY STATISTICS")
     println("-" * 80)
     salaryStatistics(employeeDF).show(false)
+
+    // Create department data and demonstrate joins
+    val departmentData = Seq(
+      Department("Engineering", "Ramesh Kumar"),
+      Department("Sales", "Sunita Rao"),
+      Department("HR", "Kavita Gupta"),
+      Department("Marketing", "Suresh Pillai")
+    )
+    val departmentDF = departmentData.toDF()
+
+    println("\n13. DEPARTMENT DATA")
+    println("-" * 80)
+    departmentDF.show(false)
+
+    // Write CSVs (will create directories employees_csv/ and departments_csv/)
+    employeeDF.coalesce(1).write.mode("overwrite").option("header","true").csv("employees_csv")
+    departmentDF.coalesce(1).write.mode("overwrite").option("header","true").csv("departments_csv")
+    println("Wrote employees_csv/ and departments_csv/ directories with CSV files")
+
+    // Join example: left join employees with department info
+    println("\n14. JOIN EMPLOYEES WITH DEPARTMENTS (LEFT JOIN)")
+    println("-" * 80)
+    val joinedDF = joinWithDepartmentInfo(employeeDF, departmentDF)
+    joinedDF.show(false)
+
+    // Aggregator example
+    println("\n15. AGGREGATORS: AVG/MAX SALARY BY DEPARTMENT AND CITY")
+    println("-" * 80)
+    aggregateByDeptCity(employeeDF).show(false)
 
     // Stop Spark Session
     spark.stop()
@@ -205,5 +248,34 @@ object EmployeeAnalytics {
       count("*").as("Total_Employees")
     )
   }
+
+  /**
+   * Aggregator: Avg/Max salary by department and city
+   */
+  private def aggregateByDeptCity(df: DataFrame): DataFrame = {
+    df.groupBy("department", "city")
+      .agg(avg("salary").as("Avg_Salary"), max("salary").as("Max_Salary"), count("*").as("Employee_Count"))
+      .orderBy(col("department"), col("city"))
+  }
+
+  /**
+   * Join employees with department info
+   */
+  private def joinWithDepartmentInfo(df: DataFrame, deptDF: DataFrame): DataFrame = {
+    df.join(deptDF, Seq("department"), "left")
+  }
+
+  /**
+   * Expressions & Mapping examples
+   */
+  private def addBonusColumn(df: DataFrame): DataFrame = {
+    df.withColumn("bonus", round(col("salary") * 0.10, 2))
+      .withColumn("salary_band", when(col("salary") >= 90000, "A").when(col("salary") >= 80000, "B").otherwise("C"))
+  }
+
+  private def nameUppercaseMapping(df: DataFrame): DataFrame = {
+    df.withColumn("name_upper", upper(col("name")))
+  }
+
 }
 
