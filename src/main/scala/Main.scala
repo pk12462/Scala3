@@ -1,10 +1,11 @@
-object Main extends App {
-  val name: String = "pavan"
-  val age: Int = 25
-  val isActive: Boolean = true
-
-  println(age)
-  println(name)
-  println(isActive)
+// Main entry point - delegates to EmployeeAnalytics
+object Main {
+  def main(args: Array[String]): Unit = {
+    EmployeeAnalytics.main(args)
+  }
 }
+
+
+
+
 
