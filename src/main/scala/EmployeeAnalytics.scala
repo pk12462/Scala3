@@ -1,10 +1,10 @@
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.expressions.Window
 
-
-
-case class Department(department: String, manager: String)
+// Updated case class to match departments.csv structure (6 columns)
+case class Department(deptId: Int, department: String, manager: String, location: String, budget: Long, employees: Int)
 
 object EmployeeAnalytics {
 
@@ -22,120 +22,131 @@ object EmployeeAnalytics {
     // Import spark implicits for automatic conversion
     import spark.implicits._
 
-    // Determine input CSV path (optional arg) and load data from CSV (preferred).
-    // This project includes `data/employees.csv` with 100 rows.
-    val dataPath: String = if (args.nonEmpty) args(0) else "data/employees.csv"
+     // Load employee data from CSV
+     // This project includes `data/employees.csv` with 100 employees
+     val employeePath: String = if (args.nonEmpty) args(0) else "data/employees.csv"
 
-    // Read CSV and normalize schema/columns. We cast important fields to the correct types
-    val employeeDF: DataFrame = {
-      val df = spark.read
-        .option("header", "true")
-        .option("inferSchema", "true")
-        .csv(dataPath)
+     // Read employees CSV and normalize schema/columns. We cast important fields to the correct types
+     val employeeDF: DataFrame = {
+       val df = spark.read
+         .option("header", "true")
+         .option("inferSchema", "true")
+         .csv(employeePath)
 
-      // Ensure correct types and a proper date column
-      df.withColumn("empId", col("empId").cast("int"))
-        .withColumn("salary", col("salary").cast("double"))
-        .withColumn("joinDate", to_date(col("joinDate"), "yyyy-MM-dd"))
-        .select("empId", "name", "department", "salary", "joinDate", "city")
-    }
+       // Ensure correct types and a proper date column
+       df.withColumn("empId", col("empId").cast("int"))
+         .withColumn("salary", col("salary").cast("double"))
+         .withColumn("joinDate", to_date(col("joinDate"), "yyyy-MM-dd"))
+         .select("empId", "name", "department", "salary", "joinDate", "city")
+     }
 
-    println("\n1. ALL EMPLOYEE DATA")
-    println("-" * 80)
-    employeeDF.show(false)
+     // Load department data from CSV
+     // This project includes `data/departments.csv` with 100 department entries
+     val departmentPath: String = "data/departments.csv"
+     val departmentDF: DataFrame = {
+       val df = spark.read
+         .option("header", "true")
+         .option("inferSchema", "true")
+         .csv(departmentPath)
 
-    // Demonstrate expressions, mappings and derived columns
-    println("\n1a. DERIVED COLUMNS: BONUS (10%) AND SALARY_BAND")
-    println("-" * 80)
-    addBonusColumn(employeeDF).show(false)
+       // Ensure correct types for department CSV
+       df.withColumn("deptId", col("deptId").cast("int"))
+         .withColumn("budget", col("budget").cast("long"))
+         .withColumn("employees", col("employees").cast("int"))
+         .select("deptId", "department", "manager", "location", "budget", "employees")
+     }
 
-    println("\n1b. NAME MAPPING: UPPERCASE NAMES")
-    println("-" * 80)
-    nameUppercaseMapping(employeeDF).show(false)
+     println("\n1. ALL EMPLOYEE DATA (First 20 of 100 employees)")
+     println("-" * 80)
+     employeeDF.show(20, false)
 
-    // Functionality 1: Filter employees by department
-    println("\n2. EMPLOYEES IN ENGINEERING DEPARTMENT")
-    println("-" * 80)
-    filterByDepartment(employeeDF, "Engineering").show(false)
+     // Demonstrate expressions, mappings and derived columns
+     println("\n1a. DERIVED COLUMNS: BONUS (10%) AND SALARY_BAND (First 15)")
+     println("-" * 80)
+     addBonusColumn(employeeDF).show(15, false)
 
-    // Functionality 2: Filter employees by salary range
-    println("\n3. EMPLOYEES WITH SALARY BETWEEN 75000 AND 85000")
-    println("-" * 80)
-    filterBySalaryRange(employeeDF, 75000.0, 85000.0).show(false)
+     println("\n1b. NAME MAPPING: UPPERCASE NAMES (First 15)")
+     println("-" * 80)
+     nameUppercaseMapping(employeeDF).show(15, false)
 
-    // Functionality 3: Average salary by department
-    println("\n4. AVERAGE SALARY BY DEPARTMENT")
-    println("-" * 80)
-    averageSalaryByDepartment(employeeDF).show(false)
+     // Functionality 1: Filter employees by department
+     println("\n2. EMPLOYEES IN ENGINEERING DEPARTMENT")
+     println("-" * 80)
+     filterByDepartment(employeeDF, "Engineering").show(15, false)
 
-    // Functionality 4: Count employees by department
-    println("\n5. EMPLOYEE COUNT BY DEPARTMENT")
-    println("-" * 80)
-    employeeCountByDepartment(employeeDF).show(false)
+     // Functionality 2: Filter employees by salary range
+     println("\n3. EMPLOYEES WITH SALARY BETWEEN 68000 AND 80000")
+     println("-" * 80)
+     filterBySalaryRange(employeeDF, 68000.0, 80000.0).show(15, false)
 
-    // Functionality 5: Highest paid employees
-    println("\n6. TOP 3 HIGHEST PAID EMPLOYEES")
-    println("-" * 80)
-    topPaidEmployees(employeeDF, 3).show(false)
+     // Functionality 3: Average salary by department
+     println("\n4. AVERAGE SALARY BY DEPARTMENT")
+     println("-" * 80)
+     averageSalaryByDepartment(employeeDF).show(false)
 
-    // Functionality 6: Employees by city
-    println("\n7. EMPLOYEES BY CITY")
-    println("-" * 80)
-    employeesByCity(employeeDF).show(false)
+     // Functionality 4: Count employees by department
+     println("\n5. EMPLOYEE COUNT BY DEPARTMENT")
+     println("-" * 80)
+     employeeCountByDepartment(employeeDF).show(false)
 
-    // Functionality 7: Average salary by city
-    println("\n8. AVERAGE SALARY BY CITY")
-    println("-" * 80)
-    averageSalaryByCity(employeeDF).show(false)
+     // Functionality 5: Highest paid employees
+     println("\n6. TOP 10 HIGHEST PAID EMPLOYEES")
+     println("-" * 80)
+     topPaidEmployees(employeeDF, 10).show(false)
 
-    // Functionality 8: Department with highest average salary
-    println("\n9. DEPARTMENT WITH HIGHEST AVERAGE SALARY")
-    println("-" * 80)
-    departmentWithHighestAvgSalary(employeeDF).show(false)
+     // Functionality 6: Employees by city
+     println("\n7. EMPLOYEES BY CITY")
+     println("-" * 80)
+     employeesByCity(employeeDF).show(false)
 
-    // Functionality 9: Count employees joined after a date
-    println("\n10. EMPLOYEES JOINED AFTER 2021-01-01")
-    println("-" * 80)
-    employeesJoinedAfter(employeeDF, "2021-01-01").show(false)
+     // Functionality 7: Average salary by city
+     println("\n8. AVERAGE SALARY BY CITY")
+     println("-" * 80)
+     averageSalaryByCity(employeeDF).show(false)
 
-    // Functionality 10: Total salary expense by department
-    println("\n11. TOTAL SALARY EXPENSE BY DEPARTMENT")
-    println("-" * 80)
-    totalSalaryByDepartment(employeeDF).show(false)
+     // Functionality 8: Department with highest average salary
+     println("\n9. DEPARTMENT WITH HIGHEST AVERAGE SALARY")
+     println("-" * 80)
+     departmentWithHighestAvgSalary(employeeDF).show(false)
 
-    // Functionality 11: Statistics
-    println("\n12. SALARY STATISTICS")
-    println("-" * 80)
-    salaryStatistics(employeeDF).show(false)
+     // Functionality 9: Count employees joined after a date
+     println("\n10. EMPLOYEES JOINED AFTER 2020-01-01")
+     println("-" * 80)
+     employeesJoinedAfter(employeeDF, "2020-01-01").show(15, false)
 
-    // Create department data and demonstrate joins
-    val departmentData = Seq(
-      Department("Engineering", "Ramesh Kumar"),
-      Department("Sales", "Sunita Rao"),
-      Department("HR", "Kavita Gupta"),
-      Department("Marketing", "Suresh Pillai")
-    )
-    val departmentDF = departmentData.toDF()
+     // Functionality 10: Total salary expense by department
+     println("\n11. TOTAL SALARY EXPENSE BY DEPARTMENT")
+     println("-" * 80)
+     totalSalaryByDepartment(employeeDF).show(false)
 
-    println("\n13. DEPARTMENT DATA")
-    println("-" * 80)
-    departmentDF.show(false)
+     // Functionality 11: Statistics
+     println("\n12. SALARY STATISTICS")
+     println("-" * 80)
+     salaryStatistics(employeeDF).show(false)
 
-    // Write CSVs (will create directories employees_csv/ and departments_csv/)
-    employeeDF.coalesce(1).write.mode("overwrite").option("header","true").csv("employees_csv")
-    departmentDF.coalesce(1).write.mode("overwrite").option("header","true").csv("departments_csv")
-    println("Wrote employees_csv/ and departments_csv/ directories with CSV files")
+     println("\n13. DEPARTMENT DATA (First 10 from 100 departments)")
+     println("-" * 80)
+     departmentDF.show(10, false)
 
-    // Join example: left join employees with department info
-    println("\n14. JOIN EMPLOYEES WITH DEPARTMENTS (LEFT JOIN)")
-    println("-" * 80)
-    val joinedDF = joinWithDepartmentInfo(employeeDF, departmentDF)
-    joinedDF.show(false)
+     // Write CSVs (will create directories employees_csv/ and departments_csv/)
+     try {
+       employeeDF.coalesce(1).write.mode("overwrite").option("header","true").csv("employees_csv")
+       departmentDF.coalesce(1).write.mode("overwrite").option("header","true").csv("departments_csv")
+       println("✅ Wrote employees_csv/ and departments_csv/ directories with CSV files")
+     } catch {
+       case e: Exception => println("⚠️ CSV write failed (requires HADOOP_HOME): " + e.getMessage)
+     }
 
-    // Aggregator example
-    println("\n15. AGGREGATORS: AVG/MAX SALARY BY DEPARTMENT AND CITY")
-    println("-" * 80)
-    aggregateByDeptCity(employeeDF).show(false)
+     // Join example: left join employees with department info (matching on department column)
+     println("\n14. JOIN EMPLOYEES WITH DEPARTMENTS (LEFT JOIN on 'department')")
+     println("-" * 80)
+     val joinedDF = joinWithDepartmentInfo(employeeDF, departmentDF)
+     joinedDF.show(10, false)
+
+     // Aggregator example
+     println("\n15. AGGREGATORS: AVG/MAX SALARY BY DEPARTMENT AND CITY (First 15)")
+     println("-" * 80)
+     aggregateByDeptCity(employeeDF).show(15, false)
 
     // Stop Spark Session
     spark.stop()
@@ -258,12 +269,19 @@ object EmployeeAnalytics {
       .orderBy(col("department"), col("city"))
   }
 
-  /**
-   * Join employees with department info
-   */
-  private def joinWithDepartmentInfo(df: DataFrame, deptDF: DataFrame): DataFrame = {
-    df.join(deptDF, Seq("department"), "left")
-  }
+   /**
+    * Join employees with department info
+    * Get only the first/primary department manager for each department (using row_number window function)
+    */
+   private def joinWithDepartmentInfo(df: DataFrame, deptDF: DataFrame): DataFrame = {
+     // Get only the first department entry per department name (primary manager)
+     val windowSpec = Window.partitionBy("department").orderBy("deptId")
+     val primaryDeptDF = deptDF.withColumn("rn", row_number().over(windowSpec))
+       .filter(col("rn") === 1)
+       .drop("rn", "deptId", "budget", "employees", "location")  // Keep only department and manager
+
+     df.join(primaryDeptDF, Seq("department"), "left")
+   }
 
   /**
    * Expressions & Mapping examples
