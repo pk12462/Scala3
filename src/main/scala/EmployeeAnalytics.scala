@@ -5,14 +5,26 @@ import org.apache.spark.sql.expressions.Window
 
 // Updated case class to match departments.csv structure (6 columns)
 case class Department(deptId: Int, department: String, manager: String, location: String, budget: Long, employees: Int)
+// constructor -> create objects equals() -> compare objects toString() -> print object, toString is used when we do println(object) or show() on DataFrame with Department objects, copy() -> create a copy of the object with some fields modified, hashCode() -> generate a hash code for the object (used in collections like HashMap), pattern matching -> allows us to match on the structure of the object in match expressions, unapply() -> used for pattern matching to extract fields from the object, apply() -> factory method to create instances of the case class without using the new keyword
+//class Employee(
+// val empId: Int,
+// val name: String,
+// )
+//val emp=new Employee(1, "Alice")
+// def apply(empId: Int, name: String): Employee = new Employee(empId, name) // factory method to create Employee instances without using new keyword
+//emploee(1, "Alice") // creates a new Employee instance with empId=1 and name="Alice" using the apply method
+// new Employee(1, "Alice") // creates a new Employee instance with empId=1 and name="Alice" using the constructor
+//employee(1,"pavan", 90000)
+
 
 object EmployeeAnalytics {
 
   def main(args: Array[String]): Unit = {
     // Initialize Spark Session
     val spark = SparkSession.builder()
+    // executors/memory/execution engine
       .appName("Employee Analytics")
-      .master("local[*]")
+      .master("local[*]") // Use all available cores for local testing
       .getOrCreate()
 
     println("=" * 80)
@@ -25,6 +37,10 @@ object EmployeeAnalytics {
      // Load employee data from CSV
      // This project includes `data/employees.csv` with 100 employees
      val employeePath: String = if (args.nonEmpty) args(0) else "data/employees.csv"
+
+    //spark-submit app.jar my_employees.csv
+    // val df = spark.read.option("header", "true").option("inferSchema", "true").csv(employeePath)
+    //inferSchema is a convenient option that allows Spark to automatically determine the data types of columns when reading a CSV file. When you set inferSchema to true, Spark will analyze the data in each column and attempt to infer the appropriate data type (e.g., integer, double, string, date) based on the values it encounters. This can be very useful for ensuring that your DataFrame has the correct types for subsequent operations without needing to manually specify the schema. However, it can add some overhead during the initial read operation, especially for large datasets, as Spark needs to scan through the data to make these determinations.
 
      // Read employees CSV and normalize schema/columns. We cast important fields to the correct types
      val employeeDF: DataFrame = {
