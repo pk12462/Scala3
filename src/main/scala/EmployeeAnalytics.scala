@@ -41,8 +41,9 @@ object EmployeeAnalytics {
     //spark-submit app.jar my_employees.csv
     // val df = spark.read.option("header", "true").option("inferSchema", "true").csv(employeePath)
     //inferSchema is a convenient option that allows Spark to automatically determine the data types of columns when reading a CSV file. When you set inferSchema to true, Spark will analyze the data in each column and attempt to infer the appropriate data type (e.g., integer, double, string, date) based on the values it encounters. This can be very useful for ensuring that your DataFrame has the correct types for subsequent operations without needing to manually specify the schema. However, it can add some overhead during the initial read operation, especially for large datasets, as Spark needs to scan through the data to make these determinations.
+// .withColumn("empId", col("empId").cast("int")) -> this line takes the empId column from the DataFrame and casts its values to integers, ensuring that the empId field is treated as an integer type for any subsequent operations or analyses. This is important for accurate data processing and to avoid issues that can arise from having empId as a string (e.g., sorting, filtering, or joining on empId).
+     //    Read employees CSV and normalize schema/columns. We cast important fields to the correct types
 
-     // Read employees CSV and normalize schema/columns. We cast important fields to the correct types
      val employeeDF: DataFrame = {
        val df = spark.read
          .option("header", "true")
